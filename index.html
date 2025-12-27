@@ -358,6 +358,9 @@ function initChat() {
   suggestions.style.marginTop = '10px';
 
   suggestions.innerHTML = `
+    <button class="choice-btn" onclick="location.href='recommend.html'" style="background:#FFF3E0; border-color:#FF9800; color:#E65100;">
+       💻 パソコン選びを相談する（コンシェルジュ）
+    </button>
     <button class="choice-btn" onclick="sendText(this.innerText)">商品について</button>
     <button class="choice-btn" onclick="sendText(this.innerText)">返品・交換・キャンセルについて</button>
     <button class="choice-btn" onclick="sendText(this.innerText)">お支払い・配送について</button>
