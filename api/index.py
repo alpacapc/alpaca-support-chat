@@ -19,13 +19,22 @@ except:
     except:
         df = pd.DataFrame()
 
-# 画像URL抽出
+# ★ここを修正（新URL対応版）★
 def extract_image_url(html_content):
     if not isinstance(html_content, str): return ""
-    pattern = r'https://image\.rakuten\.co\.jp/alpacapc/cabinet/item_new2?/[^"]+\.jpg'
-    match = re.search(pattern, html_content)
+    
+    # 1. 【最優先】MakeShopの画像サーバーを探す
+    # 指定されたURLで始まり、" (ダブルクォート) またはスペースが来るまでの文字列を取得
+    pattern_makeshop = r'https://makeshop-multi-images\.akamaized\.net/alpacapc/shopimages/[^"\s]+'
+    match = re.search(pattern_makeshop, html_content)
     if match: return match.group(0)
-    return ""
+
+    # 2. 【予備】なければ従来の楽天画像サーバー(item_new/item_new2)を探す
+    pattern_rakuten = r'https://image\.rakuten\.co\.jp/alpacapc/cabinet/item_new2?/[^"\s]+\.jpg'
+    match_old = re.search(pattern_rakuten, html_content)
+    if match_old: return match_old.group(0)
+    
+    return "" # どちらも見つからなければ画像なし
 
 if not df.empty:
     df['extracted_image'] = df['PC用メイン商品説明文'].apply(extract_image_url)
@@ -43,23 +52,19 @@ def chat():
 def recommend():
     data = request.json
     user_msg = data.get('message', '')
-    history = data.get('history', []) # 会話履歴も受け取る
+    history = data.get('history', [])
     
-    # 全ての会話履歴を結合して、ユーザーの要望（ノートかデスクか等）を判断する
+    # 会話履歴の結合
     full_context = " ".join([h['content'] for h in history if h['role'] == 'user']) + " " + user_msg
     
-    # --- 1. 絞り込みロジック (Python側で候補を減らす) ---
+    # --- 1. 絞り込みロジック ---
     candidates = df.copy()
     
-    # 「ノート」指定ならデスクトップを除外
     if 'ノート' in full_context and 'デスクトップ' not in user_msg:
         candidates = candidates[candidates['商品名'].str.contains('ノート', na=False) | candidates['カテゴリーパス'].str.contains('ノート', na=False)]
-    
-    # 「デスク」指定ならノートを除外
     elif 'デスクトップ' in full_context or 'デスク' in full_context:
          candidates = candidates[candidates['商品名'].str.contains('デスク', na=False) | candidates['カテゴリーパス'].str.contains('デスク', na=False)]
 
-    # キーワードスコアリング
     keywords = user_msg.replace('円', '').replace('以下', '').split()
     def calc_score(row):
         text = str(row['商品名']) + str(row['PC用メイン商品説明文'])
@@ -85,7 +90,7 @@ def recommend():
         ------------------------
         """
 
-    # --- 2. AIへの指令 (ヒアリングの順番を定義) ---
+    # --- 2. AIへの指令 ---
     rec_prompt = f"""
     あなたは中古パソコンショップ「アルパカPC」のコンシェルジュです。
     ユーザーの要望「{user_msg}」に対し、以下のステップで接客を行ってください。
