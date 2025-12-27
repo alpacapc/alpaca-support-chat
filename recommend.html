@@ -143,13 +143,13 @@
 
 <div class="container">
   <div class="header">
-    <img src="https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111028335.jpg" alt="">
+    <img src="https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111057353.jpg" alt="">
     パソコン選びコンシェルジュ
   </div>
   
   <div class="chat-area" id="chat">
     <div class="msg-row bot">
-      <img src="https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111028335.jpg" class="icon">
+      <img src="https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111057353.jpg" class="icon">
       <div class="bubble">
         いらっしゃいませ！<b>アルパカPC コンシェルジュ</b>へようこそ！<br>
         ご希望の「予算」や「用途（マイクラがしたい、事務作業用など）」を教えていただければ、在庫の中からぴったりの1台をご提案します！
@@ -168,7 +168,7 @@ let history = [];
 const chat = document.getElementById('chat');
 const input = document.getElementById('input');
 const btn = document.getElementById('send');
-const ALPACA_ICON = "https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111028335.jpg";
+const ALPACA_ICON = "https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111057353.jpg";
 
 function parseMarkdown(text) {
   if (!text) return "";
@@ -176,10 +176,17 @@ function parseMarkdown(text) {
                  .replace(/</g, "&lt;")
                  .replace(/>/g, "&gt;");
   
-  // HTMLタグの復活（画像タグ<img>を追加！）
+  // HTMLタグの復活（太字、改行、画像、そして★リンク★）
   html = html.replace(/&lt;b&gt;/g, '<b>').replace(/&lt;\/b&gt;/g, '</b>');
   html = html.replace(/&lt;br&gt;/g, '<br>');
-  html = html.replace(/&lt;img/g, '<img').replace(/&gt;/g, '>'); 
+  html = html.replace(/&lt;img/g, '<img'); // imgタグ開始
+  html = html.replace(/&lt;a/g, '<a');     // ★aタグ開始を追加
+  html = html.replace(/&lt;\/a&gt;/g, '</a>'); // ★aタグ終了を追加
+  
+  // 属性の閉じ括弧などを復元（>）
+  // ※単純に全部の &gt; を > にすると危ないので、タグの形をしているものだけ戻すのが理想ですが、
+  // 今回は簡易的に画像とリンクのために &gt; を戻します。
+  html = html.replace(/&gt;/g, '>'); 
   
   html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   html = html.replace(/\n/g, '<br>');

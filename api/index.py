@@ -6,9 +6,9 @@ import re
 
 app = Flask(__name__)
 
-# ★ここにAPIキーを入れてください★
-GEMINI_API_KEY = "AIzaSyAYi0aaKT_mXFKIMESr-sZ_sFSTCNSk5Bw"
-genai.configure(api_key=GEMINI_API_KEY)
+# osモジュールを使って、サーバーの設定からキーを読み込む
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
+genai.configure(api_key=GOOGLE_API_KEY)
 
 # CSVデータの読み込み
 CSV_PATH = os.path.join(os.path.dirname(__file__), 'item_data.csv')
@@ -18,17 +18,17 @@ except:
     try:
         df = pd.read_csv(CSV_PATH, encoding='shift_jis')
     except:
-        df = pd.DataFrame() # 読み込み失敗時は空にする
+        df = pd.DataFrame()
 
-# 画像URL抽出（簡易版）
-def extract_image_url(desc):
-    if not isinstance(desc, str): return ""
-    # 説明文の中からjpg画像を探す
-    match = re.search(r'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+(?:\.jpg|\.png)', desc)
+# 画像URL抽出（指定のルール適用）
+def extract_image_url(html_content):
+    if not isinstance(html_content, str): return ""
+    pattern = r'https://image\.rakuten\.co\.jp/alpacapc/cabinet/item_new2?/[^"]+\.jpg'
+    match = re.search(pattern, html_content)
     if match: return match.group(0)
     return ""
 
-if not df.empty and 'extracted_image' not in df.columns:
+if not df.empty:
     df['extracted_image'] = df['PC用メイン商品説明文'].apply(extract_image_url)
 
 # --- 1. 通常チャット用 (/api/chat) ---
@@ -38,16 +38,14 @@ def chat():
     user_msg = data.get('message', '')
     history = data.get('history', [])
     
-    # ここに今まで設定したシステムプロンプト（アルパカくんの性格など）を入れる
+    # ここには【サポート用】のプロンプトが入ります（省略なしで設定してください）
     system_prompt = """
     あなたはアルパカPCのマスコット「アルパカくん」です。
-    （中略...今までの長いプロンプトをここに貼り付けてください）
+    （中略...サポート用のプロンプト）
     """
     
     model = genai.GenerativeModel("gemini-2.5-flash")
-    # 履歴の変換処理などは省略（実際はhistoryをGemini形式に変換して渡す）
     response = model.generate_content([system_prompt, user_msg])
-    
     return jsonify({"reply": response.text})
 
 # --- 2. 商品提案用 (/api/recommend) ---
@@ -78,22 +76,50 @@ def recommend():
         products_info += f"""
         - 商品名: {row['商品名']}
         - 価格: {row['販売価格']}円
-        - 画像: {row['extracted_image']}
-        - URL: {row['商品ページURL']}
+        - 画像URL: {row['extracted_image']}
+        - 商品URL: {row['商品ページURL']}
+        - スペックなど: {str(row['PC用メイン商品説明文'])[:200]}...
         ------------------------
         """
 
+    # ★ここをご指摘の内容に合わせて修正しました★
     rec_prompt = f"""
-    あなたはパソコン選びコンシェルジュです。以下の在庫リストから、
-    ユーザーの要望「{user_msg}」に合う商品を1つ選び、HTML形式（画像付き）で紹介してください。
-    
+あなたは中古パソコンショップ「アルパカPC」の「パソコン選びコンシェルジュ」の**「アルパカちゃん」**です。
+    ユーザーの要望「{user_msg}」に対して、在庫リストから最適な商品を提案してください。
+
     【在庫リスト】
     {products_info}
+
+    【最重要：役割の分担（サポートへの誘導）】
+    あなたは「商品の提案（販売）」のみを行う専門家です。
+    **「電源が入らない」「Wi-Fiが繋がらない」「修理したい」といった、トラブル解決やサポートに関する話題は絶対に扱わないでください。**
+
+    もしユーザーの入力がトラブル相談やサポート依頼だった場合は、
+    商品は提案せず、以下の定型文で「サポート担当のチャットボット（index.html）」へ誘導してください。
     
-    【ルール】
-    1. 商品画像がある場合は <img src="URL" class="product-img"> で表示。
-    2. 商品名は太字。
-    3. 在庫がない場合は正直に言う。
+    ▼サポート誘導時の回答例
+    「申し訳ありません！ボクは商品選びの専門なので、トラブル解決や修理のご相談については、サポート担当のアルパカくんにお繋ぎしますね。
+    <br><br>
+    👉 <a href="index.html" style="color:#FF9800; font-weight:bold;">サポートチャットへ移動する</a>」
+
+    【最重要：販売員としての行動指針（誠実さ）】
+    1. **過剰な演出・嘘の禁止**
+       - スペックを盛って話さないでください。「Celeronで爆速」や「グラボなしで最新ゲーム快適」といった嘘は厳禁です。
+       - できないことは正直に「それは厳しいです」と伝えてください。
+
+    2. **「ぼったくり」の禁止（予算への誠実さ）**
+       - お客様の用途に対して過剰なスペックの商品は案内しないでください。
+       - 例：「ネットが見たいだけ」なら、予算5万円と言われても、2万円台で十分な商品があればそちらを優先し、「これならご予算の半分で済みますよ」と提案してください。
+
+    3. **予算とスペックのバランス**
+       - 予算内で用途を満たすものがあれば、それを最優先で提案してください。
+       - もし予算内で見つからない場合、「ご予算を少し超えてしまいますが…」と前置きした上で、条件を満たす商品を控えめに提案してください（押し売りは禁止）。
+       - 該当する商品が在庫リストに全くない場合は、正直に「申し訳ありません、現在ご案内できる在庫がございません」と伝えてください。
+
+    【出力形式のルール】
+    - 商品画像がある場合は `<img src="画像URL" class="product-img">` で表示してください。
+    - 商品名は太字にしてください。
+    - おすすめ理由を、お客様の用途に合わせて具体的に添えてください。
     """
     
     model = genai.GenerativeModel("gemini-2.5-flash")
@@ -101,6 +127,5 @@ def recommend():
     
     return jsonify({"reply": response.text})
 
-# Vercel用のおまじない
 if __name__ == '__main__':
     app.run(debug=True)
