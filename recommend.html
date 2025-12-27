@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>アルパカPC パソコン選びコンシェルジュ</title>
 <style>
-  /* 全体の設定（コンシェルジュ用：暖色テーマ） */
+  /* 全体設定 */
   body { 
     font-family: "Helvetica Neue", Arial, sans-serif;
-    background: #fff9f0; /* 薄いオレンジ背景 */
+    background: #fff9f0; 
     margin: 0; 
     display: flex; 
     justify-content: center; 
@@ -24,9 +24,8 @@
     box-shadow: 0 0 20px rgba(0,0,0,0.05); 
   }
 
-  /* ヘッダー（オレンジ） */
   .header {
-    background: #FF9800; /* コンシェルジュカラー */
+    background: #FF9800; 
     color: #fff; 
     padding: 15px; 
     text-align: center; 
@@ -45,7 +44,6 @@
     border: 2px solid #fff;
   }
 
-  /* チャットエリア */
   .chat-area { 
     flex: 1; 
     padding: 20px; 
@@ -61,7 +59,6 @@
     gap: 10px;
     animation: fadeIn 0.3s ease;
   }
-
   .msg-row.user { flex-direction: row-reverse; }
 
   .icon {
@@ -84,26 +81,190 @@
     word-wrap: break-word;
   }
 
-  /* Botの吹き出し（薄いオレンジ） */
-  .bot .bubble {
-    background: #FFF3E0; 
-    color: #333;
-    border-top-left-radius: 4px;
-  }
+  .bot .bubble { background: #FFF3E0; color: #333; border-top-left-radius: 4px; }
+  .user .bubble { background: #FF9800; color: #fff; border-top-right-radius: 4px; }
 
-  /* ユーザーの吹き出し（濃いオレンジ） */
-  .user .bubble {
-    background: #FF9800;
-    color: #fff;
-    border-top-right-radius: 4px;
-  }
-
-  /* 商品画像のスタイル */
+  /* 商品画像 */
   .product-img {
     max-width: 100%;
     border-radius: 8px;
-    margin-top: 8px;
+    margin-top: 10px;
     border: 1px solid #ddd;
+    display: block;
+  }
+
+  /* リンクボタンのデザイン */
+  .product-link {
+    display: inline-block;
+    margin-top: 10px;
+    background: #e65100;
+    color: #fff;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-weight: bold;
+    font-size: 0.9em;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+  }
+  .product-link:hover {
+    background: #ff9800;
+    transform: translateY(-2px);
+  }
+
+  /* 続きを見るリンク */
+  .more-link {
+    font-size: 0.75em;
+    color: #999;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-top: 4px;
+    display: inline-block;
+    padding: 2px 5px;
+    transition: color 0.2s;
+  }
+  .more-link:hover { color: #FF9800; }
+
+  /* 選択肢ボタンエリア */
+  .choice-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  .choice-btn {
+    background: #fff;
+    border: 1px solid #FF9800;
+    color: #FF9800;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: bold;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  .choice-btn:hover {
+    background: #FF9800;
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  /* ▼▼▼ 担当者相談エリア（移植） ▼▼▼ */
+  .support-container {
+    margin-top: 8px;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .toggle-btn {
+    background: #fff;
+    border: 1px solid #ddd;
+    color: #555;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    cursor: pointer;
+    text-align: left;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .toggle-btn:hover { background: #fff8e1; color: #333; border-color: #ffe082; }
+
+  .details-area {
+    display: none;
+    margin-top: 10px;
+    flex-direction: column;
+    gap: 12px;
+    animation: slideDown 0.3s ease;
+  }
+  .details-area.show { display: flex; }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .phone-section {
+    background: #fff;
+    border: 1px solid #eee;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .phone-number {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #333;
+    display: block;
+    margin-bottom: 4px;
+    text-decoration: none;
+  }
+  .phone-hours {
+    font-size: 0.75em;
+    color: #666;
+    display: block;
+    margin-bottom: 10px;
+  }
+  
+  .alert-box {
+    background: #fff4f4;
+    border: 1px solid #ffcccc;
+    color: #d32f2f;
+    font-size: 0.8em;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: left;
+    line-height: 1.5;
+  }
+
+  .action-btn {
+    display: block;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.95em;
+    transition: transform 0.2s, opacity 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .action-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+  .btn-form { background: #FF9800; color: #fff; border: none; }
+  .btn-line { background: #06c755; color: #fff; border: none; }
+  /* ▲▲▲ ▲▲▲ */
+
+  /* リセットエリア */
+  .reset-area {
+    background: #fff9f0;
+    padding: 6px;
+    text-align: center;
+    border-top: 1px solid #ffe0b2;
+  }
+  
+  .reset-btn {
+    background: #fff;
+    border: 1px solid #FF9800;
+    border-radius: 20px;
+    color: #E65100;
+    font-size: 0.8em;
+    cursor: pointer;
+    padding: 4px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+  }
+  
+  .reset-btn:hover {
+    background: #FF9800;
+    color: #fff;
   }
 
   /* 入力エリア */
@@ -148,17 +309,14 @@
   </div>
   
   <div class="chat-area" id="chat">
-    <div class="msg-row bot">
-      <img src="https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111057353.jpg" class="icon">
-      <div class="bubble">
-        いらっしゃいませ！<b>アルパカPC コンシェルジュ</b>へようこそ！<br>
-        ご希望の「予算」や「用途（マイクラがしたい、事務作業用など）」を教えていただければ、在庫の中からぴったりの1台をご提案します！
-      </div>
     </div>
+
+  <div class="reset-area">
+    <button class="reset-btn" onclick="resetChat()">🔄 最初からやり直す</button>
   </div>
 
   <div class="input-area">
-    <input type="text" id="input" placeholder="例：3万円以下でノートパソコンが欲しい">
+    <input type="text" id="input" placeholder="メッセージを入力...">
     <button id="send">送信</button>
   </div>
 </div>
@@ -170,24 +328,114 @@ const input = document.getElementById('input');
 const btn = document.getElementById('send');
 const ALPACA_ICON = "https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111057353.jpg";
 
+// 連絡先設定
+const URL_FORM = "https://www.alpaca-pc.com/ssl/contact/";
+const URL_LINE = "https://page.line.me/544rnszi?oat_content=url&openQrModal=true";
+const SHOP_PHONE = "048-577-7990";
+
+window.onload = initChat;
+
+// 初期表示
+function initChat() {
+  chat.innerHTML = ''; 
+  
+  const row = document.createElement('div');
+  row.className = 'msg-row bot';
+  
+  const img = document.createElement('img');
+  img.src = ALPACA_ICON;
+  img.className = 'icon';
+
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '5px';
+  container.style.maxWidth = '85%';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = 'いらっしゃいませ！<b>アルパカPC コンシェルジュ</b>です！<br>お客様にぴったりの一台をお探しします。まずは<b>パソコンの主な使い道</b>を教えてください！';
+  container.appendChild(bubble);
+
+  // 用途の選択肢
+  const suggestions = document.createElement('div');
+  suggestions.className = 'choice-container';
+  suggestions.innerHTML = `
+    <button class="choice-btn" onclick="sendText('用途：ネットや動画が見れれば十分')">🔰 ネット・動画視聴</button>
+    <button class="choice-btn" onclick="sendText('用途：事務作業・テレワーク')">💼 事務・テレワーク</button>
+    <button class="choice-btn" onclick="sendText('用途：マインクラフトや軽いゲーム')">🎮 マインクラフト・ゲーム</button>
+    <button class="choice-btn" onclick="sendText('用途：画像作成や動画編集')">🎨 イラスト・動画編集</button>
+    <button class="choice-btn" onclick="sendText('用途：特に決まっていない')">❓ 特に決まっていない</button>
+  `;
+  container.appendChild(suggestions);
+
+  row.appendChild(img);
+  row.appendChild(container);
+  chat.appendChild(row);
+}
+
+// リセット機能
+function resetChat() {
+  if(!confirm("会話の履歴を消去して、最初からやり直しますか？")) return;
+  history = []; 
+  initChat();   
+}
+
+function sendText(text) {
+  input.value = text;
+  sendMessage();
+}
+
+// ★続きを教えて機能（コンシェルジュ版）★
+async function askMore() {
+  const hiddenText = "前の文章が途中で切れています。続きから書いてください。";
+  input.disabled = true;
+
+  try {
+    const res = await fetch('/api/recommend', { // recommendエンドポイントへ
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: hiddenText, history: history })
+    });
+    const data = await res.json();
+    
+    addMsg(data.reply, 'bot');
+    
+    history.push({ role: 'user', content: hiddenText });
+    history.push({ role: 'assistant', content: data.reply });
+
+  } catch (e) {
+    alert("エラーが発生しました。");
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+function parseOptions(text) {
+  const match = text.match(/\[CHOICES[:：](.*?)\]/);
+  if (match) {
+    const optionsStr = match[1]; 
+    const cleanText = text.replace(match[0], ''); 
+    const options = optionsStr.split(',').map(s => s.trim());
+    return { text: cleanText, options: options };
+  }
+  return { text: text, options: [] };
+}
+
 function parseMarkdown(text) {
   if (!text) return "";
-  let html = text.replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
-                 .replace(/>/g, "&gt;");
+  let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   
-  // HTMLタグの復活（太字、改行、画像、そして★リンク★）
   html = html.replace(/&lt;b&gt;/g, '<b>').replace(/&lt;\/b&gt;/g, '</b>');
   html = html.replace(/&lt;br&gt;/g, '<br>');
-  html = html.replace(/&lt;img/g, '<img'); // imgタグ開始
-  html = html.replace(/&lt;a/g, '<a');     // ★aタグ開始を追加
-  html = html.replace(/&lt;\/a&gt;/g, '</a>'); // ★aタグ終了を追加
+  html = html.replace(/&lt;img/g, '<img').replace(/&gt;/g, '>'); 
   
-  // 属性の閉じ括弧などを復元（>）
-  // ※単純に全部の &gt; を > にすると危ないので、タグの形をしているものだけ戻すのが理想ですが、
-  // 今回は簡易的に画像とリンクのために &gt; を戻します。
-  html = html.replace(/&gt;/g, '>'); 
-  
+  html = html.replace(/&lt;a/g, '<a');
+  html = html.replace(/&lt;\/a&gt;/g, '</a>');
+  html = html.replace(/target=&quot;_blank&quot;/g, 'target="_blank"');
+  html = html.replace(/class=&quot;product-link&quot;/g, 'class="product-link"');
+
   html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   html = html.replace(/\n/g, '<br>');
   return html;
@@ -202,7 +450,6 @@ async function sendMessage() {
   input.disabled = true;
 
   try {
-    // コンシェルジュ用のエンドポイントへ送信
     const res = await fetch('/api/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -216,28 +463,110 @@ async function sendMessage() {
     history.push({ role: 'assistant', content: data.reply });
 
   } catch (e) {
-    addMsg("すみません、在庫の確認中にエラーが発生しました。もう一度お試しください。", 'bot');
+    addMsg("すみません、エラーが発生しました。", 'bot');
   } finally {
     input.disabled = false;
     input.focus();
   }
 }
 
-function addMsg(text, role) {
+function addMsg(rawText, role) {
   const row = document.createElement('div');
   row.className = `msg-row ${role}`;
   
   if (role === 'bot') {
+    // 既存の担当者相談ボタンを消す（常に最新のみ表示するため）
+    document.querySelectorAll('.support-container').forEach(e => e.remove());
+
     const img = document.createElement('img');
     img.src = ALPACA_ICON;
     img.className = 'icon';
+    
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '5px';
+    container.style.maxWidth = '85%'; 
+
+    let bubbleContent = rawText;
+    let options = [];
+
+    const parsed = parseOptions(rawText);
+    bubbleContent = parseMarkdown(parsed.text);
+    options = parsed.options;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = bubbleContent;
+    container.appendChild(bubble);
+
+    // ★続きを見るリンク★
+    const moreLink = document.createElement('div');
+    moreLink.innerHTML = '<span class="more-link" onclick="askMore()">※文章が途切れている場合はこちら</span>';
+    container.appendChild(moreLink);
+
+    // 選択肢ボタン
+    if (options.length > 0) {
+      const choiceContainer = document.createElement('div');
+      choiceContainer.className = 'choice-container';
+      options.forEach(opt => {
+        const choiceBtn = document.createElement('button');
+        choiceBtn.className = 'choice-btn';
+        choiceBtn.innerText = opt;
+        choiceBtn.onclick = () => sendText(opt);
+        choiceContainer.appendChild(choiceBtn);
+      });
+      container.appendChild(choiceContainer);
+    }
+
+    // ★担当者相談エリア（ここに追加！）★
+    const supportContainer = document.createElement('div');
+    supportContainer.className = 'support-container';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'toggle-btn';
+    toggleBtn.innerHTML = '担当者に相談する(電話/フォーム/LINE)';
+    
+    const details = document.createElement('div');
+    details.className = 'details-area';
+    details.innerHTML = `
+      <div class="phone-section">
+        <a href="tel:${SHOP_PHONE}" class="phone-number">📞 ${SHOP_PHONE}</a>
+        <span class="phone-hours">電話受付時間：平日10時～17時(土日祝除く)</span>
+        <div class="alert-box">
+          <span style="color:#333; display:block;">
+            電話の回線が少ない為、なかなか繋がらない場合もございます。お問い合わせフォームまたはLINEでお問い合わせいただければ<b>1営業日以内</b>にご返信いたします。
+          </span>
+        </div>
+      </div>
+      <a href="${URL_FORM}" target="_blank" class="action-btn btn-form">✉️ お問い合わせフォーム</a>
+      <a href="${URL_LINE}" target="_blank" class="action-btn btn-line">💬 LINEでお問い合わせ</a>
+    `;
+
+    toggleBtn.onclick = () => {
+      details.classList.toggle('show');
+      if(details.classList.contains('show')) {
+        toggleBtn.innerHTML = '✖ 閉じる';
+        setTimeout(() => {
+          chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+        }, 100); 
+      } else {
+        toggleBtn.innerHTML = '担当者に相談する(電話/フォーム/LINE)';
+      }
+    };
+
+    supportContainer.appendChild(toggleBtn);
+    supportContainer.appendChild(details);
+    container.appendChild(supportContainer);
+
     row.appendChild(img);
+    row.appendChild(container);
+  } else {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = parseMarkdown(rawText);
+    row.appendChild(bubble);
   }
-  
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  bubble.innerHTML = parseMarkdown(text);
-  row.appendChild(bubble);
 
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
