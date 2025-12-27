@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アルパカくんサポート</title>
+<style>
+  /* 全体の設定 */
+  body { 
+    font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    background: #f4f8fb;
+    margin: 0; 
+    display: flex; 
+    justify-content: center; 
+    height: 100vh; 
+  }
+
+  .container { 
+    width: 100%; 
+    max-width: 600px; 
+    background: #fff; 
+    display: flex; 
+    flex-direction: column; 
+    box-shadow: 0 0 20px rgba(0,0,0,0.05); 
+  }
+
+  /* ヘッダー */
+  .header {
+    background: #4A90E2;
+    color: #fff; 
+    padding: 15px; 
+    text-align: center; 
+    font-weight: bold;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  .header img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+  }
+
+  /* チャットエリア */
+  .chat-area { 
+    flex: 1; 
+    padding: 20px; 
+    overflow-y: auto; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 20px; 
+  }
+
+  /* メッセージの行 */
+  .msg-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .msg-row.user {
+    flex-direction: row-reverse;
+  }
+
+  .icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #eee;
+    background: #fff;
+    flex-shrink: 0;
+  }
+
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 18px;
+    max-width: 80%;
+    line-height: 1.6;
+    font-size: 0.95em;
+    position: relative;
+    word-wrap: break-word;
+  }
+
+  .bot .bubble {
+    background: #f0f0f0;
+    color: #333;
+    border-top-left-radius: 4px;
+    max-width: 100%; 
+  }
+
+  .user .bubble {
+    background: #4A90E2;
+    color: #fff;
+    border-top-right-radius: 4px;
+  }
+
+  /* ▼▼▼ 続きを見るリンクのデザイン ▼▼▼ */
+  .more-link {
+    font-size: 0.75em;
+    color: #999;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-top: 4px;
+    display: inline-block;
+    padding: 2px 5px;
+    transition: color 0.2s;
+  }
+  .more-link:hover {
+    color: #4A90E2;
+  }
+  /* ▲▲▲ ▲▲▲ */
+
+  /* リセットエリア */
+  .reset-area {
+    background: #f9f9f9;
+    padding: 6px;
+    text-align: center;
+    border-top: 1px solid #eee;
+  }
+  
+  .reset-btn {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    color: #666;
+    font-size: 0.8em;
+    cursor: pointer;
+    padding: 4px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+  }
+  
+  .reset-btn:hover {
+    color: #4A90E2;
+    border-color: #4A90E2;
+  }
+
+  /* 選択肢ボタン */
+  .choice-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  .choice-btn {
+    background: #fff;
+    border: 1px solid #4A90E2;
+    color: #4A90E2;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: bold;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  .choice-btn:hover {
+    background: #4A90E2;
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  /* 問い合わせ詳細エリア */
+  .support-container {
+    margin-top: 8px;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .toggle-btn {
+    background: #fff;
+    border: 1px solid #ddd;
+    color: #555;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    cursor: pointer;
+    text-align: left;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .toggle-btn:hover {
+    background: #f9f9f9;
+    color: #333;
+    border-color: #bbb;
+  }
+
+  .details-area {
+    display: none;
+    margin-top: 10px;
+    flex-direction: column;
+    gap: 12px;
+    animation: slideDown 0.3s ease;
+  }
+  .details-area.show { display: flex; }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .phone-section {
+    background: #fff;
+    border: 1px solid #eee;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .phone-number {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #333;
+    display: block;
+    margin-bottom: 4px;
+    text-decoration: none;
+  }
+  .phone-hours {
+    font-size: 0.75em;
+    color: #666;
+    display: block;
+    margin-bottom: 10px;
+  }
+  
+  .alert-box {
+    background: #fff4f4;
+    border: 1px solid #ffcccc;
+    color: #d32f2f;
+    font-size: 0.8em;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: left;
+    line-height: 1.5;
+  }
+
+  .action-btn {
+    display: block;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.95em;
+    transition: transform 0.2s, opacity 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .action-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+  .btn-form { background: #4A90E2; color: #fff; border: none; }
+  .btn-line { background: #06c755; color: #fff; border: none; }
+
+  /* 入力エリア */
+  .input-area { 
+    padding: 15px; 
+    border-top: 1px solid #eee; 
+    display: flex; 
+    gap: 10px; 
+    background: #fff;
+  }
+  
+  input { 
+    flex: 1; 
+    padding: 12px 15px; 
+    border: 1px solid #ddd; 
+    border-radius: 30px; 
+    outline: none; 
+    font-size: 16px;
+  }
+  
+  button { 
+    padding: 0 25px; 
+    background: #4A90E2; 
+    color: #fff; 
+    border: none; 
+    border-radius: 30px; 
+    cursor: pointer; 
+    font-weight: bold; 
+    transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.9; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <img src="https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111028335.jpg" alt="">
+    アルパカくんサポート
+  </div>
+  
+  <div class="chat-area" id="chat">
+    </div>
+
+  <div class="reset-area">
+    <button class="reset-btn" onclick="resetChat()">🔄 最初からやり直す</button>
+  </div>
+
+  <div class="input-area">
+    <input type="text" id="input" placeholder="メッセージを入力してね...">
+    <button id="send">送信</button>
+  </div>
+</div>
+
+<script>
+let history = []; 
+const chat = document.getElementById('chat');
+const input = document.getElementById('input');
+const btn = document.getElementById('send');
+const ALPACA_ICON = "https://image.rakuten.co.jp/alpacapc/cabinet/item_new/06703877/imgrc0111028335.jpg";
+
+const URL_FORM = "https://www.alpaca-pc.com/ssl/contact/";
+const URL_LINE = "https://page.line.me/544rnszi?oat_content=url&openQrModal=true";
+const SHOP_PHONE = "048-577-7990";
+
+// ページ読み込み時に初期化
+window.onload = initChat;
+
+// 初期メニュー
+function initChat() {
+  chat.innerHTML = ''; 
+  
+  const row = document.createElement('div');
+  row.className = 'msg-row bot';
+
+  const img = document.createElement('img');
+  img.src = ALPACA_ICON;
+  img.className = 'icon';
+
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '5px';
+  container.style.maxWidth = '85%';
+
+  // 1. 挨拶
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = 'こんにちは！<b>アルパカPCの「アルパカくん」</b>です！<br>パソコンのことでお困りのことはありますか？メニューから選ぶか、自由に質問してくださいね。';
+  container.appendChild(bubble);
+
+  // 2. メインメニュー（5つの大項目）
+  const suggestions = document.createElement('div');
+  suggestions.className = 'choice-container';
+  suggestions.style.marginTop = '10px';
+
+  suggestions.innerHTML = `
+    <button class="choice-btn" onclick="sendText(this.innerText)">商品について</button>
+    <button class="choice-btn" onclick="sendText(this.innerText)">返品・交換・キャンセルについて</button>
+    <button class="choice-btn" onclick="sendText(this.innerText)">お支払い・配送について</button>
+    <button class="choice-btn" onclick="sendText(this.innerText)">ご注文について</button>
+    <button class="choice-btn" onclick="sendText(this.innerText)">パソコンのトラブルについて</button>
+  `;
+  container.appendChild(suggestions);
+
+  row.appendChild(img);
+  row.appendChild(container);
+  chat.appendChild(row);
+}
+
+// リセット機能
+function resetChat() {
+  if(!confirm("会話の履歴を消去して、最初からやり直しますか？")) return;
+  history = []; 
+  initChat();   
+}
+
+function sendText(text) {
+  input.value = text;
+  sendMessage();
+}
+
+// ★「続きを教えて」と裏で送信する機能★
+async function askMore() {
+  const hiddenText = "前の文章が途中で切れています。続きから書いてください。";
+  
+  // ユーザーの画面には出さず、ローディングだけ見せる（あるいは何も見せずBotの返信を待つ）
+  // ここではBotの思考中感だけ出すため、入力ロックなどはsendMessageと同じ処理をします
+  input.disabled = true;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: hiddenText, history: history })
+    });
+    const data = await res.json();
+    
+    // Botの返信として表示（続きの文章）
+    addMsg(data.reply, 'bot');
+    
+    // 履歴には残す（文脈をつなぐため）
+    history.push({ role: 'user', content: hiddenText });
+    history.push({ role: 'assistant', content: data.reply });
+
+  } catch (e) {
+    alert("エラーが発生しました。もう一度お試しください。");
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+// ★ Markdown＆記号対策＆改行調整を行う関数 ★
+function parseMarkdown(text) {
+  if (!text) return "";
+  
+  // 1. 記号を無害化（< > など）
+  let html = text.replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+
+  // 2. 必要なタグだけ復活
+  html = html.replace(/&lt;b&gt;/g, '<b>');
+  html = html.replace(/&lt;\/b&gt;/g, '</b>');
+  html = html.replace(/&lt;br&gt;/g, '<br>');
+
+  // 3. Markdown太字変換
+  html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+  // ★4. ここが修正ポイント：改行のリミッター★
+  // 「2回以上連続する改行（\n\n\n...）」を「2回（\n\n）」に強制統一します。
+  // これで「妙に広い隙間」がなくなります。
+  html = html.replace(/\n{3,}/g, '\n\n'); 
+
+  // 5. 最後に改行コードを <br> に変換
+  html = html.replace(/\n/g, '<br>');
+
+  return html;
+}
+
+// ★修正版：AIの表記ゆれ（スペースや全角コロン）に対応する関数★
+function parseOptions(text) {
+  // 1. 正規表現を強化：
+  // \s* は「スペースがあってもなくてもOK」という意味
+  // [:：] は「半角コロンでも全角コロンでもOK」という意味
+  const match = text.match(/\[\s*CHOICES\s*[:：]\s*(.*?)\]/);
+  
+  if (match) {
+    const optionsStr = match[1]; 
+    const cleanText = text.replace(match[0], ''); 
+    // カンマも全角半角両方に対応して分割
+    const options = optionsStr.split(/[,、，]/).map(s => s.trim());
+    return { text: cleanText, options: options };
+  }
+  return { text: text, options: [] };
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  addMsg(text, 'user');
+  input.value = '';
+  input.disabled = true;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, history: history })
+    });
+    const data = await res.json();
+    
+    addMsg(data.reply, 'bot');
+    
+    history.push({ role: 'user', content: text });
+    history.push({ role: 'assistant', content: data.reply });
+
+  } catch (e) {
+    addMsg("ごめんね、ちょっと調子が悪いみたい…。もう一度試してみて！", 'bot');
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+function addMsg(rawText, role) {
+  addMsgInner(rawText, role, true);
+}
+
+function addMsgInner(content, role, shouldParse) {
+  const row = document.createElement('div');
+  row.className = `msg-row ${role}`;
+  
+  if (role === 'bot') {
+    document.querySelectorAll('.support-container').forEach(e => e.remove());
+
+    const img = document.createElement('img');
+    img.src = ALPACA_ICON;
+    img.className = 'icon';
+    
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '5px';
+    container.style.maxWidth = '85%'; 
+
+    let bubbleContent = content;
+    let options = [];
+
+    if (shouldParse) {
+      const parsed = parseOptions(content);
+      bubbleContent = parseMarkdown(parsed.text);
+      options = parsed.options;
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.style.maxWidth = '100%';
+    bubble.innerHTML = bubbleContent;
+    container.appendChild(bubble);
+
+    // ★ここに「続きを見る」リンクを追加★
+    const moreLink = document.createElement('div');
+    moreLink.innerHTML = '<span class="more-link" onclick="askMore()">※文章が途切れている場合はこちら</span>';
+    // 吹き出しの直下に追加
+    container.appendChild(moreLink);
+
+    // 選択肢ボタン
+    if (options.length > 0) {
+      const choiceContainer = document.createElement('div');
+      choiceContainer.className = 'choice-container';
+      options.forEach(opt => {
+        const choiceBtn = document.createElement('button');
+        choiceBtn.className = 'choice-btn';
+        choiceBtn.innerText = opt;
+        choiceBtn.onclick = () => sendText(opt);
+        choiceContainer.appendChild(choiceBtn);
+      });
+      container.appendChild(choiceContainer);
+    }
+
+    // 担当者問い合わせエリア
+    const supportContainer = document.createElement('div');
+    supportContainer.className = 'support-container';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'toggle-btn';
+    toggleBtn.innerHTML = '担当者に相談する(電話/フォーム/LINE)';
+    
+    const details = document.createElement('div');
+    details.className = 'details-area';
+    details.innerHTML = `
+      <div class="phone-section">
+        <a href="tel:${SHOP_PHONE}" class="phone-number">📞 ${SHOP_PHONE}</a>
+        <span class="phone-hours">電話受付時間：平日10時～17時(土日祝除く)</span>
+        <div class="alert-box">
+          <span style="color:#333; display:block;">
+            電話の回線が少ない為、なかなか繋がらない場合もございます。お問い合わせフォームまたはLINEでお問い合わせいただければ<b>1営業日以内</b>にご返信いたします。
+          </span>
+        </div>
+      </div>
+      <a href="${URL_FORM}" target="_blank" class="action-btn btn-form"✉️ お問い合わせフォーム</a>
+      <a href="${URL_LINE}" target="_blank" class="action-btn btn-line">💬 LINEでお問い合わせ</a>
+    `;
+
+    toggleBtn.onclick = () => {
+      details.classList.toggle('show');
+      if(details.classList.contains('show')) {
+        toggleBtn.innerHTML = '✖ 閉じる';
+        setTimeout(() => {
+          chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+        }, 100); 
+      } else {
+        toggleBtn.innerHTML = '担当者に相談する(電話/フォーム/LINE)';
+      }
+    };
+
+    supportContainer.appendChild(toggleBtn);
+    supportContainer.appendChild(details);
+    container.appendChild(supportContainer);
+
+    row.appendChild(img);
+    row.appendChild(container);
+
+  } else {
+    // ユーザー
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = parseMarkdown(content); 
+    row.appendChild(bubble);
+  }
+
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+btn.onclick = sendMessage;
+input.onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+</script>
+</body>
+</html>
