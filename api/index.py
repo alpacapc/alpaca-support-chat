@@ -19,32 +19,22 @@ except:
     except:
         df = pd.DataFrame()
 
-# ★修正：画像URL抽出（フォールバック機能付き）
-# 行データ(row)全体を受け取れるように変更
+# 画像URL抽出（フォールバック機能付き）
 def extract_image_url(row):
     html_content = str(row['PC用メイン商品説明文'])
-    
-    # 1. MakeShopの画像サーバーを探す
     pattern_makeshop = r'https://makeshop-multi-images\.akamaized\.net/alpacapc/shopimages/[^"\s]+'
     match = re.search(pattern_makeshop, html_content)
     if match: return match.group(0)
-
-    # 2. 楽天画像サーバーを探す
     pattern_rakuten = r'https://image\.rakuten\.co\.jp/alpacapc/cabinet/item_new2?/[^"\s]+\.jpg'
     match_old = re.search(pattern_rakuten, html_content)
     if match_old: return match_old.group(0)
-    
-    # 3. ★新機能：どこにも無ければ「独自商品コード」から予測する
     code = str(row['独自商品コード'])
     if code and code != 'nan':
          return f"https://makeshop-multi-images.akamaized.net/alpacapc/shopimages/{code}.jpg"
-
     return ""
 
 if not df.empty:
-    # ★修正：行ごとに処理するため axis=1 を指定
     df['extracted_image'] = df.apply(extract_image_url, axis=1)
-    
     df['数量'] = pd.to_numeric(df['数量'], errors='coerce').fillna(0)
     df['販売価格'] = pd.to_numeric(df['販売価格'], errors='coerce').fillna(0)
     df = df[df['数量'] > 0]
@@ -61,53 +51,40 @@ def recommend():
     history = data.get('history', [])
     
     full_context = " ".join([h['content'] for h in history if h['role'] == 'user']) + " " + user_msg
-    
     candidates = df.copy()
 
-    # --- 1. ゲーム関連の話題かどうか判定 ---
-    game_keywords = ['ゲーム', 'Apex', 'VALORANT', '原神', 'マインクラフト', 'マイクラ', 'フォートナイト', 'PUBG', 'スト6', 'FF14', 'ゲーミング']
-    is_gaming_intent = any(k.lower() in full_context.lower() for k in game_keywords)
+    # --- 1. 用途（重いか軽いか）の判定 ---
+    heavy_keywords = ['ゲーム', 'Apex', 'VALORANT', '原神', 'マインクラフト', 'マイクラ', 'フォートナイト', 'PUBG', 'スト6', 'FF14', 'ゲーミング', '動画', '編集', 'イラスト']
+    is_heavy_task = any(k.lower() in full_context.lower() for k in heavy_keywords)
 
-    if is_gaming_intent:
-        # GPUキーワードが含まれる商品を抽出
+    # --- 2. 検索・ソートロジック ---
+    if 'ノート' in full_context and 'デスクトップ' not in user_msg:
+        candidates = candidates[candidates['full_text'].str.contains('ノート', na=False)]
+    elif 'デスクトップ' in full_context or 'デスク' in full_context:
+         candidates = candidates[candidates['full_text'].str.contains('デスク', na=False)]
+
+    # GPUが必要そうな用途なら「高い順」で高性能機を拾う
+    if is_heavy_task:
         gpu_keywords = ['GTX', 'RTX', 'GeForce', 'Radeon', 'グラフィック', 'GPU']
-        gaming_candidates = candidates[candidates['full_text'].str.contains('|'.join(gpu_keywords), case=False, na=False)]
+        gpu_candidates = candidates[candidates['full_text'].str.contains('|'.join(gpu_keywords), case=False, na=False)]
         
-        if not gaming_candidates.empty:
-            # ★リミッター解除（全件検索）★
-            # 価格順に並べて最大100件（実質全件）をAIに渡す
-            gaming_candidates = gaming_candidates.sort_values('販売価格', ascending=False)
-            top_candidates = gaming_candidates.head(100) 
+        if not gpu_candidates.empty:
+            candidates = gpu_candidates.sort_values('販売価格', ascending=False)
         else:
             candidates = candidates.sort_values('販売価格', ascending=False)
-            top_candidates = candidates.head(50) # GPU無しでも多めに渡す
-            
     else:
-        # --- 2. 通常検索 ---
-        if 'ノート' in full_context and 'デスクトップ' not in user_msg:
-            candidates = candidates[candidates['full_text'].str.contains('ノート', na=False)]
-        elif 'デスクトップ' in full_context or 'デスク' in full_context:
-             candidates = candidates[candidates['full_text'].str.contains('デスク', na=False)]
+        # 事務用などは「安い順」でコスパ機を拾う
+        candidates = candidates.sort_values('販売価格', ascending=True)
 
-        keywords = user_msg.replace('円', '').replace('以下', '').split()
-        def calc_score(row):
-            text = str(row['full_text'])
-            score = 0
-            for kw in keywords:
-                if kw in text: score += 1
-            return score
+    # 上位100件をAIに渡す
+    top_candidates = candidates.head(100)
 
-        candidates['score'] = candidates.apply(calc_score, axis=1)
-        # 通常検索も多めに50件渡す
-        top_candidates = candidates.sort_values(['score', '販売価格'], ascending=[False, False]).head(50)
-
-    # --- AIへの受け渡し ---
+    # --- 3. 商品リスト生成 ---
     products_info = ""
     for _, row in top_candidates.iterrows():
-        products_info += f"""
-ID:{row['システム商品コード']} | 商品:{row['商品名']} | 価格:{row['販売価格']} | URL:{row['商品ページURL']} | img:{row['extracted_image']} | Spec:{str(row['PC用メイン商品説明文'])[:300]}
-"""
+        products_info += f"ID:{row['システム商品コード']} | 商品:{row['商品名']} | 価格:{row['販売価格']} | URL:{row['商品ページURL']} | img:{row['extracted_image']} | Spec:{str(row['PC用メイン商品説明文'])[:200]}\n"
 
+    # --- 4. プロンプト（ご指定の内容を完全反映） ---
     rec_prompt = f"""
     あなたは中古パソコンショップ「アルパカPC」のコンシェルジュの「アルパカちゃん」です。
     ユーザーの要望「{user_msg}」に対し、以下のステップで提供された【在庫リスト】の中から**最も適した1～3台**を選んで提案してください。
