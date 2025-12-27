@@ -19,66 +19,81 @@ except:
     except:
         df = pd.DataFrame()
 
-# ★ここを修正（新URL対応版）★
+# 画像URL抽出
 def extract_image_url(html_content):
     if not isinstance(html_content, str): return ""
-    
-    # 1. 【最優先】MakeShopの画像サーバーを探す
-    # 指定されたURLで始まり、" (ダブルクォート) またはスペースが来るまでの文字列を取得
     pattern_makeshop = r'https://makeshop-multi-images\.akamaized\.net/alpacapc/shopimages/[^"\s]+'
     match = re.search(pattern_makeshop, html_content)
     if match: return match.group(0)
-
-    # 2. 【予備】なければ従来の楽天画像サーバー(item_new/item_new2)を探す
     pattern_rakuten = r'https://image\.rakuten\.co\.jp/alpacapc/cabinet/item_new2?/[^"\s]+\.jpg'
     match_old = re.search(pattern_rakuten, html_content)
     if match_old: return match_old.group(0)
-    
-    return "" # どちらも見つからなければ画像なし
+    return ""
 
 if not df.empty:
     df['extracted_image'] = df['PC用メイン商品説明文'].apply(extract_image_url)
     df['数量'] = pd.to_numeric(df['数量'], errors='coerce').fillna(0)
     df = df[df['数量'] > 0]
+    # ★検索用に、商品名と説明文を合体させた列を作っておく
+    df['full_text'] = df['商品名'].astype(str) + " " + df['PC用メイン商品説明文'].astype(str)
 
-# --- 1. 通常チャット用 ---
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    # （ここは変更なし。以前のサポート用コードのままにしてください）
     return jsonify({"reply": "サポート機能"}) 
 
-# --- 2. 商品提案用 (/api/recommend) ---
 @app.route('/api/recommend', methods=['POST'])
 def recommend():
     data = request.json
     user_msg = data.get('message', '')
     history = data.get('history', [])
     
-    # 会話履歴の結合
     full_context = " ".join([h['content'] for h in history if h['role'] == 'user']) + " " + user_msg
     
-    # --- 1. 絞り込みロジック ---
     candidates = df.copy()
+
+    # --- ★ここが新しい検索ロジック★ ---
     
-    if 'ノート' in full_context and 'デスクトップ' not in user_msg:
-        candidates = candidates[candidates['商品名'].str.contains('ノート', na=False) | candidates['カテゴリーパス'].str.contains('ノート', na=False)]
-    elif 'デスクトップ' in full_context or 'デスク' in full_context:
-         candidates = candidates[candidates['商品名'].str.contains('デスク', na=False) | candidates['カテゴリーパス'].str.contains('デスク', na=False)]
+    # 1. ゲーム関連の話題かどうか判定
+    game_keywords = ['ゲーム', 'Apex', 'VALORANT', '原神', 'マインクラフト', 'マイクラ', 'フォートナイト', 'PUBG', 'スト6', 'FF14', 'ゲーミング']
+    is_gaming_intent = any(k.lower() in full_context.lower() for k in game_keywords)
 
-    keywords = user_msg.replace('円', '').replace('以下', '').split()
-    def calc_score(row):
-        text = str(row['商品名']) + str(row['PC用メイン商品説明文'])
-        score = 0
-        for kw in keywords:
-            if kw in text: score += 1
-        return score
+    if is_gaming_intent:
+        # ゲームなら、「GPU（グラボ）」の記載がある商品を優先的に引っ張ってくる
+        # (GTX, RTX, GeForce, Radeon, グラフィックボード などの単語を探す)
+        gpu_keywords = ['GTX', 'RTX', 'GeForce', 'Radeon', 'グラフィック', 'GPU']
+        
+        # GPU搭載機を抽出
+        gaming_candidates = candidates[candidates['full_text'].str.contains('|'.join(gpu_keywords), case=False, na=False)]
+        
+        if not gaming_candidates.empty:
+            # グラボ搭載機があれば、それを候補にする（キーワード一致してなくてもOK）
+            top_candidates = gaming_candidates.head(5)
+        else:
+            # グラボ搭載機が1つもない場合（事務用しかない場合）
+            # 正直に「ない」と言うために、あえて適当な在庫（ハイスペック寄り）を渡してAIに判断させる
+            top_candidates = candidates.head(3)
+            
+    else:
+        # 2. ゲーム以外（通常）の検索ロジック
+        # ノート/デスクの絞り込み
+        if 'ノート' in full_context and 'デスクトップ' not in user_msg:
+            candidates = candidates[candidates['full_text'].str.contains('ノート', na=False)]
+        elif 'デスクトップ' in full_context or 'デスク' in full_context:
+             candidates = candidates[candidates['full_text'].str.contains('デスク', na=False)]
 
-    if not candidates.empty:
+        # キーワードスコアリング
+        keywords = user_msg.replace('円', '').replace('以下', '').split()
+        def calc_score(row):
+            text = str(row['full_text'])
+            score = 0
+            for kw in keywords:
+                if kw in text: score += 1
+            return score
+
         candidates['score'] = candidates.apply(calc_score, axis=1)
         top_candidates = candidates.sort_values('score', ascending=False).head(5)
-    else:
-        top_candidates = pd.DataFrame()
 
+    # --- AIへの受け渡し ---
     products_info = ""
     for _, row in top_candidates.iterrows():
         products_info += f"""
@@ -86,17 +101,23 @@ def recommend():
         - 価格: {row['販売価格']}円
         - 画像URL: {row['extracted_image']}
         - 商品URL: {row['商品ページURL']}
-        - スペック: {str(row['PC用メイン商品説明文'])[:200]}...
+        - スペック詳細: {str(row['PC用メイン商品説明文'])[:300]}... 
         ------------------------
         """
+        # ※スペック詳細はAIが判断できるよう、少し長め(300文字)に渡します
 
-    # --- 2. AIへの指令 ---
     rec_prompt = f"""
     あなたは中古パソコンショップ「アルパカPC」のコンシェルジュです。
     ユーザーの要望「{user_msg}」に対し、以下のステップで接客を行ってください。
 
     【現在の会話状況】
     ユーザーの過去の発言: {full_context}
+
+    【AI判断の特別ルール：ゲームについて】
+    ユーザーが「{user_msg}」というゲームをプレイしたい場合：
+    1. あなたの知識にある「そのゲームの推奨スペック」と、上記の「在庫リストのスペック詳細」を比較してください。
+    2. もし「GTX」や「RTX」などが搭載されていて、快適に動くと判断できるなら、自信を持って提案してください。
+    3. もし在庫リストの商品がすべてスペック不足（内蔵GPUのみ等）なら、無理に勧めず「申し訳ありません、そのゲームを快適に動かすためのグラフィックボード搭載モデルが、現在在庫切れです」と正直に答えてください。
 
     【接客ステップ（この順番を必ず守ってください）】
     
