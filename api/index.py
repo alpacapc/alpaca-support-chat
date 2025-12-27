@@ -33,8 +33,8 @@ def extract_image_url(html_content):
 if not df.empty:
     df['extracted_image'] = df['PC用メイン商品説明文'].apply(extract_image_url)
     df['数量'] = pd.to_numeric(df['数量'], errors='coerce').fillna(0)
+    df['販売価格'] = pd.to_numeric(df['販売価格'], errors='coerce').fillna(0)
     df = df[df['数量'] > 0]
-    # ★検索用に、商品名と説明文を合体させた列を作っておく
     df['full_text'] = df['商品名'].astype(str) + " " + df['PC用メイン商品説明文'].astype(str)
 
 @app.route('/api/chat', methods=['POST'])
@@ -51,37 +51,32 @@ def recommend():
     
     candidates = df.copy()
 
-    # --- ★ここが新しい検索ロジック★ ---
-    
-    # 1. ゲーム関連の話題かどうか判定
+    # --- 1. ゲーム関連の話題かどうか判定 ---
     game_keywords = ['ゲーム', 'Apex', 'VALORANT', '原神', 'マインクラフト', 'マイクラ', 'フォートナイト', 'PUBG', 'スト6', 'FF14', 'ゲーミング']
     is_gaming_intent = any(k.lower() in full_context.lower() for k in game_keywords)
 
     if is_gaming_intent:
-        # ゲームなら、「GPU（グラボ）」の記載がある商品を優先的に引っ張ってくる
-        # (GTX, RTX, GeForce, Radeon, グラフィックボード などの単語を探す)
+        # GPUキーワードが含まれる商品を抽出
         gpu_keywords = ['GTX', 'RTX', 'GeForce', 'Radeon', 'グラフィック', 'GPU']
-        
-        # GPU搭載機を抽出
         gaming_candidates = candidates[candidates['full_text'].str.contains('|'.join(gpu_keywords), case=False, na=False)]
         
         if not gaming_candidates.empty:
-            # グラボ搭載機があれば、それを候補にする（キーワード一致してなくてもOK）
-            top_candidates = gaming_candidates.head(5)
+            # ★リミッター解除！★
+            # ゲーミングPCの在庫は80件程度なので、15件に絞らず「最大100件（ほぼ全件）」をAIに渡します。
+            # これにより、AIは価格の高い順だけでなく「予算に合うもの」を全商品から探せるようになります。
+            gaming_candidates = gaming_candidates.sort_values('販売価格', ascending=False)
+            top_candidates = gaming_candidates.head(100) 
         else:
-            # グラボ搭載機が1つもない場合（事務用しかない場合）
-            # 正直に「ない」と言うために、あえて適当な在庫（ハイスペック寄り）を渡してAIに判断させる
-            top_candidates = candidates.head(3)
+            candidates = candidates.sort_values('販売価格', ascending=False)
+            top_candidates = candidates.head(50) # GPU無しでも多めに渡す
             
     else:
-        # 2. ゲーム以外（通常）の検索ロジック
-        # ノート/デスクの絞り込み
+        # --- 2. 通常検索 ---
         if 'ノート' in full_context and 'デスクトップ' not in user_msg:
             candidates = candidates[candidates['full_text'].str.contains('ノート', na=False)]
         elif 'デスクトップ' in full_context or 'デスク' in full_context:
              candidates = candidates[candidates['full_text'].str.contains('デスク', na=False)]
 
-        # キーワードスコアリング
         keywords = user_msg.replace('円', '').replace('以下', '').split()
         def calc_score(row):
             text = str(row['full_text'])
@@ -91,24 +86,21 @@ def recommend():
             return score
 
         candidates['score'] = candidates.apply(calc_score, axis=1)
-        top_candidates = candidates.sort_values('score', ascending=False).head(5)
+        # 通常検索も多めに50件渡す
+        top_candidates = candidates.sort_values(['score', '販売価格'], ascending=[False, False]).head(50)
 
     # --- AIへの受け渡し ---
+    # 商品情報を少しコンパクトにして、大量のデータを渡せるようにします
     products_info = ""
     for _, row in top_candidates.iterrows():
         products_info += f"""
-        - 商品名: {row['商品名']}
-        - 価格: {row['販売価格']}円
-        - 画像URL: {row['extracted_image']}
-        - 商品URL: {row['商品ページURL']}
-        - スペック詳細: {str(row['PC用メイン商品説明文'])[:300]}... 
-        ------------------------
-        """
-        # ※スペック詳細はAIが判断できるよう、少し長め(300文字)に渡します
+ID:{row['システム商品コード']} | 商品:{row['商品名']} | 価格:{row['販売価格']} | URL:{row['商品ページURL']} | img:{row['extracted_image']} | Spec:{str(row['PC用メイン商品説明文'])[:200]}
+"""
 
     rec_prompt = f"""
-    あなたは中古パソコンショップ「アルパカPC」のコンシェルジュです。
-    ユーザーの要望「{user_msg}」に対し、以下のステップで接客を行ってください。
+    あなたは中古パソコンショップ「アルパカPC」のコンシェルジュの「アルパカちゃん」です。
+    ユーザーの要望「{user_msg}」に対し、以下のステップで提供された【在庫リスト】の中から**最も適した1～3台**を選んで提案してください。
+
 
     【現在の会話状況】
     ユーザーの過去の発言: {full_context}
@@ -118,6 +110,12 @@ def recommend():
     1. あなたの知識にある「そのゲームの推奨スペック」と、上記の「在庫リストのスペック詳細」を比較してください。
     2. もし「GTX」や「RTX」などが搭載されていて、快適に動くと判断できるなら、自信を持って提案してください。
     3. もし在庫リストの商品がすべてスペック不足（内蔵GPUのみ等）なら、無理に勧めず「申し訳ありません、そのゲームを快適に動かすためのグラフィックボード搭載モデルが、現在在庫切れです」と正直に答えてください。
+
+    【AI判断の特別ルール】
+    1. **全件比較**: 上記リストは、高いものから安いものまで幅広く含まれています。**上から順に見るのではなく、リスト全体を見て、お客様の予算と用途に「最もバランスが良いもの」**を選んでください。
+    2. **ゲーム用途**: 「Apex」等の場合、推奨スペック（GPU性能）を満たすものの中で、予算内で買える最良のものを提案してください。
+       - 予算指定がない場合は、快適に動くラインで「コスパの良いもの」を優先してください。
+       - 在庫リストにGTX/RTX搭載機があるなら、必ずそれを優先してください。
 
     【接客ステップ（この順番を必ず守ってください）】
     
