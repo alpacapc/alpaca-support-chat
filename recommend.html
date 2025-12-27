@@ -298,6 +298,16 @@
   button:hover { opacity: 0.9; }
 
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 文字を点滅させるアニメーション */
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+.blinking {
+  animation: blink 1.5s infinite;
+}
 </style>
 </head>
 <body>
@@ -335,6 +345,36 @@ const SHOP_PHONE = "048-577-7990";
 
 window.onload = initChat;
 
+// ★新機能：ローディング表示★
+function showLoading() {
+  const row = document.createElement('div');
+  row.className = 'msg-row bot loading-msg'; // 後で消すための目印クラス
+  row.id = 'loading-bubble'; // IDをつける
+
+  const img = document.createElement('img');
+  img.src = ALPACA_ICON;
+  img.className = 'icon';
+
+  const container = document.createElement('div');
+  container.className = 'bubble';
+  // 点滅するような演出を入れると「動いてる感」が出ます
+  container.innerHTML = '<span class="blinking">商品を探しています... 🔍</span>';
+  container.style.color = '#888'; // 少し薄い色にする
+
+  row.appendChild(img);
+  row.appendChild(container);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ★新機能：ローディング消去★
+function removeLoading() {
+  const loader = document.getElementById('loading-bubble');
+  if (loader) {
+    loader.remove();
+  }
+}
+
 // 初期表示
 function initChat() {
   chat.innerHTML = ''; 
@@ -363,7 +403,7 @@ function initChat() {
   suggestions.innerHTML = `
     <button class="choice-btn" onclick="sendText('用途：ネットや動画が見れれば十分')">🔰 ネット・動画視聴</button>
     <button class="choice-btn" onclick="sendText('用途：事務作業・テレワーク')">💼 事務・テレワーク</button>
-    <button class="choice-btn" onclick="sendText('用途：マインクラフトや軽いゲーム')">🎮 マインクラフト・ゲーム</button>
+    <button class="choice-btn" onclick="sendText('用途：ゲーム（マインクラフト・Apexなど）')">🎮 ゲーム（マインクラフト・Apexなど）</button>
     <button class="choice-btn" onclick="sendText('用途：画像作成や動画編集')">🎨 イラスト・動画編集</button>
     <button class="choice-btn" onclick="sendText('用途：特に決まっていない')">❓ 特に決まっていない</button>
   `;
@@ -386,18 +426,23 @@ function sendText(text) {
   sendMessage();
 }
 
-// ★続きを教えて機能（コンシェルジュ版）★
 async function askMore() {
   const hiddenText = "前の文章が途中で切れています。続きから書いてください。";
   input.disabled = true;
+  
+  // ★ローディング表示開始
+  showLoading();
 
   try {
-    const res = await fetch('/api/recommend', { // recommendエンドポイントへ
+    const res = await fetch('/api/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: hiddenText, history: history })
     });
     const data = await res.json();
+    
+    // ★ローディング消去
+    removeLoading();
     
     addMsg(data.reply, 'bot');
     
@@ -405,6 +450,7 @@ async function askMore() {
     history.push({ role: 'assistant', content: data.reply });
 
   } catch (e) {
+    removeLoading(); // エラー時も消す
     alert("エラーが発生しました。");
   } finally {
     input.disabled = false;
@@ -429,12 +475,15 @@ function parseMarkdown(text) {
   
   html = html.replace(/&lt;b&gt;/g, '<b>').replace(/&lt;\/b&gt;/g, '</b>');
   html = html.replace(/&lt;br&gt;/g, '<br>');
-  html = html.replace(/&lt;img/g, '<img').replace(/&gt;/g, '>'); 
+  html = html.replace(/&lt;img/g, '<img');
   
   html = html.replace(/&lt;a/g, '<a');
   html = html.replace(/&lt;\/a&gt;/g, '</a>');
   html = html.replace(/target=&quot;_blank&quot;/g, 'target="_blank"');
   html = html.replace(/class=&quot;product-link&quot;/g, 'class="product-link"');
+
+  // 最後に > を戻す
+  html = html.replace(/&gt;/g, '>'); 
 
   html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   html = html.replace(/\n/g, '<br>');
@@ -449,6 +498,9 @@ async function sendMessage() {
   input.value = '';
   input.disabled = true;
 
+  // ★ここでローディング表示！
+  showLoading();
+
   try {
     const res = await fetch('/api/recommend', {
       method: 'POST',
@@ -457,12 +509,17 @@ async function sendMessage() {
     });
     const data = await res.json();
     
+    // ★データが来たら消す！
+    removeLoading();
+
     addMsg(data.reply, 'bot');
     
     history.push({ role: 'user', content: text });
     history.push({ role: 'assistant', content: data.reply });
 
   } catch (e) {
+    // ★エラーが起きても消す！
+    removeLoading();
     addMsg("すみません、エラーが発生しました。", 'bot');
   } finally {
     input.disabled = false;
@@ -475,7 +532,6 @@ function addMsg(rawText, role) {
   row.className = `msg-row ${role}`;
   
   if (role === 'bot') {
-    // 既存の担当者相談ボタンを消す（常に最新のみ表示するため）
     document.querySelectorAll('.support-container').forEach(e => e.remove());
 
     const img = document.createElement('img');
@@ -500,7 +556,7 @@ function addMsg(rawText, role) {
     bubble.innerHTML = bubbleContent;
     container.appendChild(bubble);
 
-    // ★続きを見るリンク★
+    // 続きを見るリンク
     const moreLink = document.createElement('div');
     moreLink.innerHTML = '<span class="more-link" onclick="askMore()">※文章が途切れている場合はこちら</span>';
     container.appendChild(moreLink);
@@ -519,7 +575,7 @@ function addMsg(rawText, role) {
       container.appendChild(choiceContainer);
     }
 
-    // ★担当者相談エリア（ここに追加！）★
+    // 担当者相談エリア
     const supportContainer = document.createElement('div');
     supportContainer.className = 'support-container';
 
